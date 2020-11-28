@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Invisible water mark</string>
+    <string name="todo">TODO</string>
+    <string name="button">Button</string>
+    <string name="load_image">Load image</string>
+    <string name="name">Name</string>
+</resources>

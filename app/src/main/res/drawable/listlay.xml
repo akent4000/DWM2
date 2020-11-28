@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list
+    xmlns:android="http://schemas.android.com/apk/res/android">
+<!--    android:id="@+id/layerList"-->
+<!--    android:layout_width="match_parent"-->
+<!--    android:layout_height="match_parent"-->
+<!--    android:layout_weight="1"-->
+<!--    android:background="@color/white">-->
+    <item android:id="@+id/bit1">
+        <bitmap android:src="@drawable/standartimg">
+
+        </bitmap>
+    </item>
+    <item android:id="@+id/bit2">
+        <bitmap android:src="@drawable/wm1">
+
+        </bitmap>
+    </item>
+</layer-list>
