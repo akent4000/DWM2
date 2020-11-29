@@ -7,6 +7,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -22,15 +23,19 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.provider.MediaStore;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
 import android.webkit.MimeTypeMap;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -68,6 +73,7 @@ public class MainActivity2 extends AppCompatActivity {
     private Bitmap rotated = null;
     private Bitmap scaledOriginal1 = null;
     private Bitmap scaledOriginal2  = null;
+    private Handler Han;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -77,7 +83,9 @@ public class MainActivity2 extends AppCompatActivity {
 
         checkPermission();
 
+
         ImageView imageView4 = (ImageView) findViewById(R.id.imageView4);
+        ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
         alphaText = (TextView) findViewById(R.id.alphaText);
         alphaSeekBar = (SeekBar) findViewById(R.id.alpha);
         xText = (TextView) findViewById(R.id.xText);
@@ -89,12 +97,15 @@ public class MainActivity2 extends AppCompatActivity {
         rotateSeekBar = (SeekBar) findViewById(R.id.rotate);
         rotateText = (TextView) findViewById(R.id.rotateText);
 
+
         ImageView imageView1 = (ImageView) findViewById(R.id.imageView1);
         ImageView imageView2 = (ImageView) findViewById(R.id.imageView2);
         imageView1.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         imageView2.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
 
-
+        progressBar.setVisibility(ProgressBar.VISIBLE);
+        progressBar.setMax(100);
+        progressBar.setProgress(0);
 
         rotateSeekBar.setMax(360);
         rotateSeekBar.setProgress(180);
@@ -141,9 +152,23 @@ public class MainActivity2 extends AppCompatActivity {
         layer.setLayerInset(1, (minX+xSeekBar.getProgress()), (minY+ySeekBar.getProgress()), 0, 0);
         layer.setLayerSize(0, original1.getWidth(), original1.getHeight());
 
+        Button but = (Button) findViewById(R.id.button5);
+
         imageView1.setImageDrawable(layer);
         imageView2.setImageBitmap(original2);
 
+        progressBar.setMax(1000);
+
+        Han = new Handler() {
+            public void handleMessage(android.os.Message msg) {
+                progressBar.setProgress(msg.what);
+                if(msg.what == 1000)
+                {
+                    but.setEnabled(true);
+                    imageView4.setImageBitmap(scaledResult);
+                }
+            };
+        };
 
         alphaSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -469,17 +494,22 @@ public class MainActivity2 extends AppCompatActivity {
         return layer;
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     private Bitmap Blend()
     {
+        ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
+
         Bitmap renderRotate = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
         renderRotate.setPixel(0, 0, Color.argb(0, 0, 0, 0));
-        if(original2.getWidth()*scaleSeekBar.getProgress()/1000 != 0 && original2.getHeight()*scaleSeekBar.getProgress()/1000 != 0)
+        if(original2.getWidth()*scaleSeekBar.getProgress()/1000 > 0 && original2.getHeight()*scaleSeekBar.getProgress()/1000 > 0)
         {
             float rotate = (float) (minRotate + rotateSeekBar.getProgress());
             renderRotate = Bitmap.createScaledBitmap(original2, original2.getWidth()*scaleSeekBar.getProgress()/1000, original2.getHeight()*scaleSeekBar.getProgress()/1000, true);
             renderRotate = rotateBitmap(renderRotate, rotate);
         }
         renderRotate.setHasAlpha(true);
+
+
         int xN = xSeekBar.getProgress()+minX;
         int yN = ySeekBar.getProgress()+minY;
         int Alpha = alphaSeekBar.getProgress();
@@ -491,13 +521,14 @@ public class MainActivity2 extends AppCompatActivity {
         res.setPixels(srcPixels, 0, width, 0, 0, width, height);
         width = renderRotate.getWidth()*scaleSeekBar.getProgress()/1000;
         height = renderRotate.getHeight()*scaleSeekBar.getProgress()/1000;
-        Bitmap bitmap2 = renderRotate;
-        for(int x = xN; x < bitmap2.getWidth()+xN; x++)
+
+        Han.sendEmptyMessage(0);
+        for(int x = xN; x < renderRotate.getWidth()+xN; x++)
         {
-            for(int y = yN; y < bitmap2.getHeight()+yN; y++)
+            for(int y = yN; y < renderRotate.getHeight()+yN; y++)
             {
                 int color1 = original1.getPixel(x, y);
-                int color2 = bitmap2.getPixel(x-xN, y-yN);
+                int color2 = renderRotate.getPixel(x-xN, y-yN);
                 float srcA = (((float)Color.alpha(color1))/255f);
                 float dstA = (((float)Color.alpha(color2))/255f)*((float)Alpha/255f);
 //                float outA = srcA + dstA*(1- srcA);
@@ -523,19 +554,38 @@ public class MainActivity2 extends AppCompatActivity {
                 res.setPixel(x, y, Result);
 
             }
+
+            Han.sendEmptyMessage((x-xN)*1000/(renderRotate.getWidth()));
         }
+        renderRotate = null;
         return res;
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     public void mixImages(View v)
     {
-        result = Blend();
+        Button but = (Button) findViewById(R.id.button5);
+        but.setEnabled(false);
+        ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
+        progressBar.setProgress(0);
+        progressBar.setVisibility(ProgressBar.VISIBLE);
         ImageView imageView = (ImageView) findViewById(R.id.imageView4);
         imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         int h = imageView.getHeight();
-        scaledResult = Bitmap.createScaledBitmap(result, (int) (result.getWidth()*h/result.getHeight()), h, true);
-        imageView.setImageBitmap(scaledResult);
+        Runnable runnable = new Runnable() {
+            public void run() {
+                result = null;
+                result = Blend();
+                scaledResult = null;
+                scaledResult = Bitmap.createScaledBitmap(result, (int) (result.getWidth()*h/result.getHeight()), h, true);
+                Han.sendEmptyMessage(1000);
+            }
+        };
+        Thread thread = new Thread(runnable);
+        thread.start();
     }
+
+
 
     private void setMinSeekBarAlpha(int min, int max)
     {
@@ -772,13 +822,17 @@ public class MainActivity2 extends AppCompatActivity {
                     boolean a = layer.setDrawableByLayerId(R.id.bit1, d);
                     if(a)
                     {
+                        original1 = null;
                         original1 = bitmap;
+                        bitmap = null;
                         LinearLayout layout = (LinearLayout) findViewById(R.id.ImageLayout);
                         double h = layout.getHeight();
                         double h1 = original1.getHeight();
                         double h2 = original2.getHeight();
                         double w1 = original1.getWidth();
                         double w2 = original2.getWidth();
+                        scaledOriginal1 = null;
+                        scaledOriginal2 = null;
                         scaledOriginal1 = Bitmap.createScaledBitmap(original1, (int) (w1*h/h1), (int) h, true);
                         scaledOriginal2 = Bitmap.createScaledBitmap(original2, (int) (w2*h/h2), (int) h, true);
                         rotated = rotateBitmapF(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
@@ -802,9 +856,12 @@ public class MainActivity2 extends AppCompatActivity {
                     }
                     break;
                 case (1):
+                    original2 = null;
                     original2 = bitmap;
+                    bitmap = null;
                     LinearLayout layout = (LinearLayout) findViewById(R.id.ImageLayout);
                     int HeightImage = layout.getHeight();
+                    scaledOriginal2 = null;
                     scaledOriginal2 = Bitmap.createScaledBitmap(original2, HeightImage*original2.getWidth()/original2.getHeight(), HeightImage, true);
                     rotated = rotateBitmapF(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
                     setMaxScale();
