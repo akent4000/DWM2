@@ -1,38 +1,24 @@
 package com.example.myapplication;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
-import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.Message;
 import android.provider.MediaStore;
 import android.view.View;
-import android.view.ViewTreeObserver;
-import android.view.animation.Animation;
-import android.view.animation.RotateAnimation;
 import android.webkit.MimeTypeMap;
 import android.widget.Button;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -40,10 +26,15 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Calendar;
 
 public class MainActivity2 extends AppCompatActivity {
@@ -74,6 +65,13 @@ public class MainActivity2 extends AppCompatActivity {
     private Bitmap scaledOriginal1 = null;
     private Bitmap scaledOriginal2  = null;
     private Handler Han;
+    private Handler ToastHan;
+
+    final int STATUS_SAVED = 0;
+    final int STATUS_NOT_SAVED = 1;
+    final int STATUS_NULL = 2;
+    final int STATUS_BUTTON_SHARE_ENABLE = 3;
+    final int STATUS_BUTTON_SAVE_ENABLE = 4;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -153,6 +151,8 @@ public class MainActivity2 extends AppCompatActivity {
         layer.setLayerSize(0, original1.getWidth(), original1.getHeight());
 
         Button but = (Button) findViewById(R.id.button5);
+        Button butSh = (Button) findViewById(R.id.button7);
+        Button butS = (Button) findViewById(R.id.button6);
 
         imageView1.setImageDrawable(layer);
         imageView2.setImageBitmap(original2);
@@ -166,6 +166,29 @@ public class MainActivity2 extends AppCompatActivity {
                 {
                     but.setEnabled(true);
                     imageView4.setImageBitmap(scaledResult);
+                }
+            };
+        };
+
+        ToastHan = new Handler() {
+            public void handleMessage(android.os.Message msg) {
+                switch (msg.what)
+                {
+                    case (STATUS_SAVED):
+                        Toast.makeText(getApplicationContext(), "Image saved", Toast.LENGTH_SHORT).show();
+                        break;
+                    case (STATUS_NOT_SAVED):
+                        Toast.makeText(getApplicationContext(), "Save error", Toast.LENGTH_SHORT).show();
+                        break;
+                    case (STATUS_NULL):
+                        Toast.makeText(getApplicationContext(), "You haven't created an image yet", Toast.LENGTH_SHORT).show();
+                        break;
+                    case (STATUS_BUTTON_SHARE_ENABLE):
+                        butSh.setEnabled(true);
+                        break;
+                    case (STATUS_BUTTON_SAVE_ENABLE):
+                        butS.setEnabled(true);
+                        break;
                 }
             };
         };
@@ -275,26 +298,6 @@ public class MainActivity2 extends AppCompatActivity {
 
             }
         });
-
-
-//        String filename = "standartImg.jpg";
-//        InputStream inputStream = null;
-//        try{
-//            //LayerDrawable layerDrawable = (LayerDrawable) view.getBackground();
-//            inputStream = getApplicationContext().getAssets().open(filename);
-//            Drawable d = Drawable.createFromStream(inputStream, null);
-//            imageView.setImageDrawable(d);
-//            imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-//            //layerDrawable.setDrawable(0, d);
-//            //layerDrawable.setDrawable(1, d);
-//            BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-//            Bitmap bitmap = drawable.getBitmap();
-//            original1 = bitmap;
-//            original2 = bitmap;
-//        }
-//        catch (IOException e){
-//            e.printStackTrace();
-//        }
     }
 
     private void setMaxXY()
@@ -329,54 +332,70 @@ public class MainActivity2 extends AppCompatActivity {
     public void saveImage1(View view) throws Exception {
         checkPermission();
         CreateFolders();
-        ImageView imageView = (ImageView) findViewById(R.id.imageView4);
-        if(!hasImage(imageView))
-        {
-            Toast.makeText(getApplicationContext(), "You haven't created an image yet", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        Button but = (Button) findViewById(R.id.button6);
+        but.setEnabled(false);
+        Runnable run = new Runnable() {
+            @Override
+            public void run() {
+                ImageView imageView = (ImageView) findViewById(R.id.imageView4);
+                if(!hasImage(imageView))
+                {
+                    ToastHan.sendEmptyMessage(STATUS_NULL);
+                    ToastHan.sendEmptyMessage(STATUS_BUTTON_SAVE_ENABLE);
+                    return;
+                }
 
 
-        String sdcardBmpPath = Environment.getExternalStorageDirectory() + "/DCIM/SavedImages/" + java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime()) + ".png";
-        try (FileOutputStream out = new FileOutputStream(sdcardBmpPath)) {
-            result.compress(Bitmap.CompressFormat.PNG, 100, out);
-            Toast.makeText(getApplicationContext(), "Image saved", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
-            Toast.makeText(getApplicationContext(), "Save error", Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
-        }
-
-        sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(new File(sdcardBmpPath))));
+                String sdcardBmpPath = Environment.getExternalStorageDirectory() + "/DCIM/SavedImages/" + java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime()) + ".png";
+                try (FileOutputStream out = new FileOutputStream(sdcardBmpPath)) {
+                    result.compress(Bitmap.CompressFormat.PNG, 100, out);
+                    ToastHan.sendEmptyMessage(STATUS_SAVED);
+                } catch (IOException e) {
+                    ToastHan.sendEmptyMessage(STATUS_NOT_SAVED);
+                    e.printStackTrace();
+                }
+                ToastHan.sendEmptyMessage(STATUS_BUTTON_SAVE_ENABLE);
+                sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(new File(sdcardBmpPath))));
+            }
+        };
+        Thread thread = new Thread(run);
+        thread.start();
     }
 
     private void send(Bitmap bitmap) {
-        String sdcardBmpPath = Environment.getExternalStorageDirectory() + "/DCIM/LastSharedImage/" + "last_Shared_Img_Visible"+".png";
-        try (FileOutputStream out = new FileOutputStream(sdcardBmpPath)) {
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
-            Toast.makeText(getApplicationContext(), "Image saved", Toast.LENGTH_SHORT).show();
-            File myFile = new File(sdcardBmpPath);
-            MimeTypeMap mime = MimeTypeMap.getSingleton();
-            String ext = myFile.getName().substring(myFile.getName().lastIndexOf(".") + 1);
-            String type = mime.getMimeTypeFromExtension(ext);
-            Intent sharingIntent = new Intent("android.intent.action.SEND");
-            sharingIntent.setType(type);
-            sharingIntent.putExtra("android.intent.extra.STREAM", Uri.fromFile(myFile));
-            startActivity(Intent.createChooser(sharingIntent, "Share using"));
-            sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(new File(sdcardBmpPath))));
-        } catch (IOException e) {
-            Toast.makeText(getApplicationContext(), "Save error", Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
-        }
-
-        //File myFile = new File("/storage/emulated/0/saved_images/Image-test.jpg");
-        //MimeTypeMap mime = MimeTypeMap.getSingleton();
-        //String ext = myFile.getName().substring(myFile.getName().lastIndexOf(".") + 1);
-        //String type = mime.getMimeTypeFromExtension(ext);
-        //Intent sharingIntent = new Intent("android.intent.action.SEND");
-        //sharingIntent.setType(type);
-        //sharingIntent.putExtra("android.intent.extra.STREAM", Uri.fromFile(myFile));
-        //startActivity(Intent.createChooser(sharingIntent, "Share using"));
-
+        Runnable run = new Runnable() {
+            @Override
+            public void run() {
+                ImageView imageView = (ImageView) findViewById(R.id.imageView4);
+                if(!hasImage(imageView))
+                {
+                    ToastHan.sendEmptyMessage(STATUS_BUTTON_SHARE_ENABLE);
+                    ToastHan.sendEmptyMessage(STATUS_NULL);
+                    return;
+                }
+                String sdcardBmpPath = Environment.getExternalStorageDirectory() + "/DCIM/LastSharedImage/" + "last_Shared_Img_Visible"+".png";
+                try (FileOutputStream out = new FileOutputStream(sdcardBmpPath)) {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+                    ToastHan.sendEmptyMessage(STATUS_SAVED);
+                    //Toast.makeText(getApplicationContext(), "Image saved", Toast.LENGTH_SHORT).show();
+                    File myFile = new File(sdcardBmpPath);
+                    MimeTypeMap mime = MimeTypeMap.getSingleton();
+                    String ext = myFile.getName().substring(myFile.getName().lastIndexOf(".") + 1);
+                    String type = mime.getMimeTypeFromExtension(ext);
+                    Intent sharingIntent = new Intent("android.intent.action.SEND");
+                    sharingIntent.setType(type);
+                    sharingIntent.putExtra("android.intent.extra.STREAM", Uri.fromFile(myFile));
+                    startActivity(Intent.createChooser(sharingIntent, "Share using"));
+                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(new File(sdcardBmpPath))));
+                } catch (IOException e) {
+                    ToastHan.sendEmptyMessage(STATUS_NOT_SAVED);
+                    e.printStackTrace();
+                }
+                ToastHan.sendEmptyMessage(STATUS_BUTTON_SHARE_ENABLE);
+            }
+        };
+        Thread thread = new Thread(run);
+        thread.start();
     }
 
     private boolean hasImage(@NonNull ImageView view) {
@@ -427,12 +446,13 @@ public class MainActivity2 extends AppCompatActivity {
             Toast.makeText(getApplicationContext(), "You haven't created an image yet", Toast.LENGTH_SHORT).show();
             return;
         }
+        Button but = (Button) findViewById(R.id.button7);
+        but.setEnabled(false);
         send(result);
     }
 
     private void checkPermission()
     {
-        // Проверка, если разрешение не предоставлено
         int permissionStatus = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
         if (permissionStatus == PackageManager.PERMISSION_GRANTED);
@@ -515,20 +535,21 @@ public class MainActivity2 extends AppCompatActivity {
         int Alpha = alphaSeekBar.getProgress();
         int width = original1.getWidth();
         int height = original1.getHeight();
-        int[] srcPixels = new int[width * height];
-        original1.getPixels(srcPixels, 0, width, 0, 0, width, height);
+        int[] or1 = new int[width * height];
+        original1.getPixels(or1, 0, width, 0, 0, width, height);
         Bitmap res = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        res.setPixels(srcPixels, 0, width, 0, 0, width, height);
-        width = renderRotate.getWidth()*scaleSeekBar.getProgress()/1000;
-        height = renderRotate.getHeight()*scaleSeekBar.getProgress()/1000;
-
+        int width1 = renderRotate.getWidth();
+        int height1 = renderRotate.getHeight();
+        int[] rt2 = new int[width1*height1];
+        Bitmap.createScaledBitmap(renderRotate, width1, height1, true).getPixels(rt2, 0, width1, 0, 0, width1, height1);
         Han.sendEmptyMessage(0);
-        for(int x = xN; x < renderRotate.getWidth()+xN; x++)
+        for(int y = yN;y < height1+yN; y++)
         {
-            for(int y = yN; y < renderRotate.getHeight()+yN; y++)
+            for(int x = xN;  x < width1+xN; x++)
             {
-                int color1 = original1.getPixel(x, y);
-                int color2 = renderRotate.getPixel(x-xN, y-yN);
+                int temp = y*width+x;
+                int color1 = or1[temp];
+                int color2 = rt2[(x-xN)+(y-yN)*width1];
                 float srcA = (((float)Color.alpha(color1))/255f);
                 float dstA = (((float)Color.alpha(color2))/255f)*((float)Alpha/255f);
 //                float outA = srcA + dstA*(1- srcA);
@@ -542,22 +563,16 @@ public class MainActivity2 extends AppCompatActivity {
                 int gO = (int)(g1*dstA+g*(1-dstA));
                 int bO = (int)(b1*dstA+b*(1-dstA));
                 float outA = dstA+srcA*(1-dstA);
-//                int rO = (int)((dstA*r+srcA*r1*(1-dstA))/outA);
-//                int gO = (int)((dstA*g+srcA*g1*(1-dstA))/outA);
-//                int bO = (int)((dstA*b+srcA*b1*(1-dstA))/outA);
-                //res.setPixel(x, y, Color.argb(Color.alpha(color2), rO, gO, bO));
-//                float alpha = (float)Color.alpha(color1) * (float)Color.alpha(color2)/255f/255f;
-//                int r = (int)(Color.red(color1) * alpha + (1-alpha)*Color.red(color2));
-//                int g = (int)(Color.green(color1) * alpha + (1-alpha)*Color.green(color2));
-//                int b = (int)(Color.blue(color1) * alpha + (1-alpha)*Color.blue(color2));
                 int Result = Color.argb((int)(outA*255f), rO, gO, bO);
-                res.setPixel(x, y, Result);
+                or1[temp] = Result;
 
             }
-
-            Han.sendEmptyMessage((x-xN)*1000/(renderRotate.getWidth()));
+            Han.sendEmptyMessage((y-yN)*1000/(renderRotate.getHeight()));
         }
+        res.setPixels(or1, 0, width, 0, 0, width, height);
         renderRotate = null;
+        or1 = null;
+        rt2 = null;
         return res;
     }
 
@@ -782,39 +797,11 @@ public class MainActivity2 extends AppCompatActivity {
                     }
                 }
         }
-//        Bitmap bitmap1 = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
-//
-//        int col, r, g, b, w, h;
-//        w = bitmap.getWidth();
-//        h = bitmap.getHeight();
-//        for(int x = 0; x < w; x++)
-//        {
-//            for(int y = 0; y < h; y++)
-//            {
-//                col = bitmap.getPixel(x, y);
-//                r = Color.red(col);
-//                g = Color.green(col);
-//                b = Color.blue(col);
-//                bitmap1.setPixel(x, y, Color.rgb( r, g, b));
-//            }
-//        }
 
-//        String sdcardBmpPath = Environment.getExternalStorageDirectory() + "/DCIM/" + java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime()) +".bmp";
-//        AndroidBmpUtil bmpUtil = new AndroidBmpUtil();
-//        boolean isSaveResult = bmpUtil.save(bitmap, sdcardBmpPath);
-//        if(isSaveResult);
-//            //Toast.makeText(getApplicationContext(), "Image saved", Toast.LENGTH_SHORT).show();
-//        else
-//            Toast.makeText(getApplicationContext(), "Save error", Toast.LENGTH_SHORT).show();
-//        sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(new File(sdcardBmpPath))));
-//        Bitmap bmp1 =BitmapFactory.decodeFile(sdcardBmpPath);
-//        File fdel = new File(sdcardBmpPath);
         ImageView imageView1 = (ImageView) findViewById(R.id.imageView1);
         ImageView imageView2 = (ImageView) findViewById(R.id.imageView2);
         LayerDrawable layer = (LayerDrawable) getResources().getDrawable(R.drawable.listlay);
         Drawable d = new BitmapDrawable(getResources(), bitmap);
-        //View v = (View) findViewById(R.id.view);
-        //LayerDrawable layerDrawable = (LayerDrawable) v.getBackground();
         if (bitmap != null) {
             switch (loadImg)
             {
@@ -837,18 +824,6 @@ public class MainActivity2 extends AppCompatActivity {
                         scaledOriginal2 = Bitmap.createScaledBitmap(original2, (int) (w2*h/h2), (int) h, true);
                         rotated = rotateBitmapF(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
 
-//                        if(original1.getHeight() > original2.getHeight())
-//                        {
-//                            scaledOriginal1 = Bitmap.createScaledBitmap(original1, w1*h/h1, h,  true);
-//                            scaledOriginal2 = Bitmap.createScaledBitmap(original2, w2*h/h1, h*h2/h1, true);
-//                            rotated = rotateBitmap(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
-//                        }
-//                        else
-//                        {
-//                            scaledOriginal1 = Bitmap.createScaledBitmap(original1, w1*h/h2, h*h1/h2,  true);
-//                            scaledOriginal2 = Bitmap.createScaledBitmap(original2, w2*h/h2, h, true);
-//                            rotated = rotateBitmap(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
-//                        }
                         setMaxScale();
                         setMaxXY();
                         layer = setLayer();
@@ -873,27 +848,5 @@ public class MainActivity2 extends AppCompatActivity {
 
             }
         }
-
-
-//        BitmapDrawable drawable2 = (BitmapDrawable) imageView2.getDrawable();
-//
-//        Drawable draw2 = imageView2.getDrawable();
-//        //Drawable draw1 = layerDrawable.getDrawable(0);
-//
-//      //  original1 = drawableToBitmap(draw1);
-//        original2 = drawable2.getBitmap();
-//
-//        draw2.setAlpha(alphaSeekBar.getProgress()+minAlpha);
-//     //   Drawable drawableArray[] = new Drawable[] { draw1, draw2 };
-//       // LayerDrawable res = new LayerDrawable(drawableArray);
-//       // res.setLayerInset(0 , 0, 0, 0, 0);
-//      //  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-//     //       res.setLayerSize(1, original2.getWidth()*scaleSeekBar.getProgress()/100, original2.getHeight()*scaleSeekBar.getProgress()/100);
-//      //  }
-//      //  res.setLayerInset(1 , xSeekBar.getProgress()+minX, ySeekBar.getProgress()+minY, 0, 0);
-//        //BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-////        imageView1.setL
-//        //bitmap = ;
-//        original1 = bitmap;
     }
 }
