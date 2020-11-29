@@ -17,17 +17,20 @@ import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
 import android.webkit.MimeTypeMap;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -60,7 +63,12 @@ public class MainActivity2 extends AppCompatActivity {
     private SeekBar scaleSeekBar = null;
     private Bitmap original1 = null;
     private Bitmap original2  = null;
+    private Bitmap result = null;
+    private Bitmap scaledResult = null;
     private Bitmap rotated = null;
+    private Bitmap scaledOriginal1 = null;
+    private Bitmap scaledOriginal2  = null;
+
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,6 +94,8 @@ public class MainActivity2 extends AppCompatActivity {
         imageView1.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         imageView2.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
 
+
+
         rotateSeekBar.setMax(360);
         rotateSeekBar.setProgress(180);
         rotateText.setText("Rotate - " + String.valueOf(rotateSeekBar.getProgress()+minRotate) +"°");
@@ -98,8 +108,11 @@ public class MainActivity2 extends AppCompatActivity {
         original2 = drawableToBitmap((Drawable) getResources().getDrawable(R.drawable.wm1));
         original1 = drawableToBitmap((Drawable) getResources().getDrawable(R.drawable.standartimg));
         rotated = original2;
+        scaledOriginal1 = original1;
+        scaledOriginal2 = original2;
 
-
+        scaledOriginal1.setHasAlpha(true);
+        scaledOriginal2.setHasAlpha(true);
         original1.setHasAlpha(true);
         original2.setHasAlpha(true);
         rotated.setHasAlpha(true);
@@ -107,12 +120,29 @@ public class MainActivity2 extends AppCompatActivity {
         setMinSeekBarX(0, original1.getWidth() - rotated.getWidth()*scaleSeekBar.getProgress()/1000);
         setMinSeekBarY(0, original1.getHeight() - rotated.getHeight()*scaleSeekBar.getProgress()/1000);
 
-        LayerDrawable layer = setLayer();
+        int h = 525;
+        int h1 = original1.getHeight();
+        int h2 = original2.getHeight();
+        int w1 = original1.getWidth();
+        int w2 = original2.getWidth();
+        double rotate = rotateSeekBar.getProgress()+minRotate;
+        int scale = scaleSeekBar.getProgress();
+        LayerDrawable layer = (LayerDrawable) getResources().getDrawable(R.drawable.listlay);
+        Drawable temp =  new BitmapDrawable(getResources(), scaledOriginal1);
+        layer.setDrawableByLayerId(R.id.bit1, temp);
+        temp =  new BitmapDrawable(getResources(), rotated);
+        temp.setAlpha(minAlpha+alphaSeekBar.getProgress());
+        layer.setDrawableByLayerId(R.id.bit2, temp);
+        double tmp = rotated.getWidth()*w2*scale;
+        tmp = tmp/(double)w2*Math.sin((180-rotate)*Math.PI/180)/1000f;
+        double tmp1 = rotated.getHeight()*h2*scale;
+        tmp1 = tmp1/(double)h1*Math.cos((180-rotate)*Math.PI/180)/1000f;
+        layer.setLayerSize(1, (int)tmp, (int)tmp1);
+        layer.setLayerInset(1, (minX+xSeekBar.getProgress()), (minY+ySeekBar.getProgress()), 0, 0);
         layer.setLayerSize(0, original1.getWidth(), original1.getHeight());
 
         imageView1.setImageDrawable(layer);
         imageView2.setImageBitmap(original2);
-
 
 
         alphaSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -179,11 +209,9 @@ public class MainActivity2 extends AppCompatActivity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
 
-                int scale = progress+minScale;
-
-                scaleText.setText("Scale - " + String.valueOf(scale/10) + "." + String.valueOf(scale%10) + "%");
-                setMinSeekBarX(0, original1.getWidth() - rotated.getWidth()*scaleSeekBar.getProgress()/1000);
-                setMinSeekBarY(0, original1.getHeight() - rotated.getHeight()*scaleSeekBar.getProgress()/1000);
+                int scaleI = progress+minScale;
+                setMaxXY();
+                scaleText.setText("Scale - " + String.valueOf(scaleI/10) + "." + String.valueOf(scaleI%10) + "%");
 
                 LayerDrawable layer1 = setLayer();
                 imageView1.setImageDrawable(layer1);
@@ -205,10 +233,9 @@ public class MainActivity2 extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
 
                 rotateText.setText("Rotate - " + String.valueOf(progress+minRotate) +"°");
-                rotated = rotateBitmap(original2, (float)(progress + minRotate));
+                rotated = rotateBitmapF(scaledOriginal2, (float)(progress + minRotate));
                 setMaxScale();
-                setMinSeekBarX(0, original1.getWidth() - rotated.getWidth()*scaleSeekBar.getProgress()/1000);
-                setMinSeekBarY(0, original1.getHeight() - rotated.getHeight()*scaleSeekBar.getProgress()/1000);
+                setMaxXY();
                 LayerDrawable layer1 = setLayer();
                 imageView1.setImageDrawable(layer1);
             }
@@ -223,6 +250,7 @@ public class MainActivity2 extends AppCompatActivity {
 
             }
         });
+
 
 //        String filename = "standartImg.jpg";
 //        InputStream inputStream = null;
@@ -242,6 +270,19 @@ public class MainActivity2 extends AppCompatActivity {
 //        catch (IOException e){
 //            e.printStackTrace();
 //        }
+    }
+
+    private void setMaxXY()
+    {
+        double scale = (double) scaleSeekBar.getProgress()/1000f;
+        double rotate = rotateSeekBar.getProgress()+minRotate;
+        double wR = original2.getWidth()*scale;
+        double hR = original2.getHeight()*scale;
+
+        double x = getX(rotate, wR, hR);
+        double y = getY(rotate, wR, hR);
+        setMinSeekBarX(0, original1.getWidth() - (int)(x));
+        setMinSeekBarY(0, original1.getHeight() - (int)(y));
     }
 
     public   void  CreateFolders()
@@ -269,14 +310,11 @@ public class MainActivity2 extends AppCompatActivity {
             Toast.makeText(getApplicationContext(), "You haven't created an image yet", Toast.LENGTH_SHORT).show();
             return;
         }
-        BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-        Bitmap bitmap = drawable.getBitmap();
-
 
 
         String sdcardBmpPath = Environment.getExternalStorageDirectory() + "/DCIM/SavedImages/" + java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime()) + ".png";
         try (FileOutputStream out = new FileOutputStream(sdcardBmpPath)) {
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+            result.compress(Bitmap.CompressFormat.PNG, 100, out);
             Toast.makeText(getApplicationContext(), "Image saved", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             Toast.makeText(getApplicationContext(), "Save error", Toast.LENGTH_SHORT).show();
@@ -326,6 +364,34 @@ public class MainActivity2 extends AppCompatActivity {
         return hasImage;
     }
 
+    @Override
+    protected void onDestroy() {
+          minAlpha = 0;
+          minX = 0;
+          minY = 0;
+          minRotate = 0;
+          minScale = 0;
+          alphaText = null;
+          alphaSeekBar = null;
+          xText = null;
+          xSeekBar = null;
+          yText = null;
+          ySeekBar = null;
+          rotateSeekBar = null;
+          rotateText = null;
+          scaleText = null;
+          scaleSeekBar = null;
+          original1 = null;
+          original2  = null;
+          result = null;
+          scaledResult = null;
+          rotated = null;
+          scaledOriginal1 = null;
+          scaledOriginal2  = null;
+        Runtime.getRuntime().gc();
+        super.onDestroy();
+    }
+
     public void shareImage1(View view)
     {
         checkPermission();
@@ -336,9 +402,7 @@ public class MainActivity2 extends AppCompatActivity {
             Toast.makeText(getApplicationContext(), "You haven't created an image yet", Toast.LENGTH_SHORT).show();
             return;
         }
-        BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-        Bitmap bitmap = drawable.getBitmap();
-        send(bitmap);
+        send(result);
     }
 
     private void checkPermission()
@@ -353,30 +417,69 @@ public class MainActivity2 extends AppCompatActivity {
         }
     }
 
-    private static Bitmap rotateBitmap(Bitmap source, float angle)
-    {
+
+    private static Bitmap rotateBitmapF(Bitmap source, float angle) {
         Matrix matrix = new Matrix();
         matrix.postRotate(angle);
-        return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
+        Bitmap res = null;
+        res = Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, false);
+
+
+        return res;
+    }
+
+    private static Bitmap rotateBitmap(Bitmap source, float angle) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(angle);
+        Bitmap res = null;
+
+        res = Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
+
+        return res;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     private LayerDrawable setLayer()
     {
+        LinearLayout layout = (LinearLayout) findViewById(R.id.ImageLayout);
+        double h = layout.getHeight();
+        double h1 = original1.getHeight();
+        double h2 = original2.getHeight();
+        double w1 = original1.getWidth();
+        double w2 = original2.getWidth();
+        double rotate = rotateSeekBar.getProgress()+minRotate;
+        double scale = (double) scaleSeekBar.getProgress()/1000f;
+
+        double wR = h*w2*scale/h1;
+        double hR = h*h2*scale/h1;
+
+        double x = getX(rotate, wR, hR);
+        double y = getY(rotate, wR, hR);
+
+        rotated.setHasAlpha(true);
+
         LayerDrawable layer = (LayerDrawable) getResources().getDrawable(R.drawable.listlay);
-        Drawable temp =  new BitmapDrawable(getResources(), original1);
+        Drawable temp =  new BitmapDrawable(getResources(), scaledOriginal1);
         layer.setDrawableByLayerId(R.id.bit1, temp);
         temp =  new BitmapDrawable(getResources(), rotated);
         temp.setAlpha(minAlpha+alphaSeekBar.getProgress());
         layer.setDrawableByLayerId(R.id.bit2, temp);
-        layer.setLayerSize(1, rotated.getWidth()*scaleSeekBar.getProgress()/1000, rotated.getHeight()*scaleSeekBar.getProgress()/1000);
-        layer.setLayerInset(1, minX+xSeekBar.getProgress(), minY+ySeekBar.getProgress(), 0, 0);
+        layer.setLayerSize(1, (int)x, (int)y);
+        layer.setLayerInset(1, (minX+xSeekBar.getProgress())*scaledOriginal1.getWidth()/original1.getWidth(), (minY+ySeekBar.getProgress())*scaledOriginal1.getHeight()/original1.getHeight(), 0, 0);
         return layer;
     }
 
     private Bitmap Blend()
     {
-        rotated.setHasAlpha(true);
+        Bitmap renderRotate = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        renderRotate.setPixel(0, 0, Color.argb(0, 0, 0, 0));
+        if(original2.getWidth()*scaleSeekBar.getProgress()/1000 != 0 && original2.getHeight()*scaleSeekBar.getProgress()/1000 != 0)
+        {
+            float rotate = (float) (minRotate + rotateSeekBar.getProgress());
+            renderRotate = Bitmap.createScaledBitmap(original2, original2.getWidth()*scaleSeekBar.getProgress()/1000, original2.getHeight()*scaleSeekBar.getProgress()/1000, true);
+            renderRotate = rotateBitmap(renderRotate, rotate);
+        }
+        renderRotate.setHasAlpha(true);
         int xN = xSeekBar.getProgress()+minX;
         int yN = ySeekBar.getProgress()+minY;
         int Alpha = alphaSeekBar.getProgress();
@@ -386,13 +489,9 @@ public class MainActivity2 extends AppCompatActivity {
         original1.getPixels(srcPixels, 0, width, 0, 0, width, height);
         Bitmap res = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         res.setPixels(srcPixels, 0, width, 0, 0, width, height);
-        width = rotated.getWidth()*scaleSeekBar.getProgress()/1000;
-        height = rotated.getHeight()*scaleSeekBar.getProgress()/1000;
-        Bitmap bitmap2 = null;
-        if(width != 0 && height != 0)
-        {
-            bitmap2 = Bitmap.createScaledBitmap(rotated, width, height, true);
-        }
+        width = renderRotate.getWidth()*scaleSeekBar.getProgress()/1000;
+        height = renderRotate.getHeight()*scaleSeekBar.getProgress()/1000;
+        Bitmap bitmap2 = renderRotate;
         for(int x = xN; x < bitmap2.getWidth()+xN; x++)
         {
             for(int y = yN; y < bitmap2.getHeight()+yN; y++)
@@ -430,9 +529,12 @@ public class MainActivity2 extends AppCompatActivity {
 
     public void mixImages(View v)
     {
-        Bitmap res = Blend();
+        result = Blend();
         ImageView imageView = (ImageView) findViewById(R.id.imageView4);
-        imageView.setImageBitmap(res);
+        imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        int h = imageView.getHeight();
+        scaledResult = Bitmap.createScaledBitmap(result, (int) (result.getWidth()*h/result.getHeight()), h, true);
+        imageView.setImageBitmap(scaledResult);
     }
 
     private void setMinSeekBarAlpha(int min, int max)
@@ -530,15 +632,82 @@ public class MainActivity2 extends AppCompatActivity {
         return bitmap;
     }
 
+    private double getX(double rotate, double wR, double hR)
+    {
+        double x = 0f;
+        if(rotate > 0  && rotate <= 90)
+        {
+            rotate = rotate;
+            double rotate1 = rotate*Math.PI/180;
+            x = wR*Math.cos(rotate1)+hR*Math.sin(rotate1);
+        }
+        else if(rotate > 90 && rotate <= 180)
+        {
+            rotate = rotate-90;
+            double rotate1 = rotate*Math.PI/180;
+            x = wR*Math.sin(rotate1)+hR*Math.cos(rotate1);
+        }
+        else if(rotate > -90 && rotate <= 0)
+        {
+            rotate = -1*rotate;
+            double rotate1 = rotate*Math.PI/180;
+            x = wR*Math.cos(rotate1)+hR*Math.sin(rotate1);
+        }
+        else
+        {
+            rotate = -1*rotate-90;
+            double rotate1 = rotate*Math.PI/180;
+            x = hR*Math.cos(rotate1)+wR*Math.sin(rotate1);
+        }
+        return x;
+    }
+
+    private double getY(double rotate, double wR, double hR)
+    {
+        double y = 0f;
+
+        if(rotate > 0  && rotate <= 90)
+        {
+            rotate = rotate;
+            double rotate1 = rotate*Math.PI/180;
+            y = wR*Math.sin(rotate1)+hR*Math.cos(rotate1);
+        }
+        else if(rotate > 90 && rotate <= 180)
+        {
+            rotate = rotate-90;
+            double rotate1 = rotate*Math.PI/180;
+            y = hR*Math.sin(rotate1)+wR*Math.cos(rotate1);
+        }
+        else if(rotate > -90 && rotate <= 0)
+        {
+            rotate = -1*rotate;
+            double rotate1 = rotate*Math.PI/180;
+            y = hR*Math.cos(rotate1)+wR*Math.sin(rotate1);
+        }
+        else
+        {
+            rotate = -1*rotate-90;
+            double rotate1 = rotate*Math.PI/180;
+            y = wR*Math.cos(rotate1)+hR*Math.sin(rotate1);
+        }
+        return y;
+    }
+
     private void setMaxScale()
     {
-//        double angle = (double) (rotateSeekBar.getProgress()+minScale) - Math.atan2(original2.getWidth(), original2.getHeight());
-//        double temp = original1.getHeight()/Math.sin(Math.atan2(original2.getWidth(), original2.getHeight()));
-//        int w = (int)(temp * Math.cos(angle));
-//        int h = (int)(temp * Math.sin(angle));
-        if(rotated.getWidth() > original1.getWidth() || rotated.getHeight() > original1.getHeight())
+        double rotate = rotateSeekBar.getProgress()+minRotate;
+        double wR = original2.getWidth();
+        double hR = original2.getHeight();
+
+        double x = getX(rotate, wR, hR);
+        double y = getY(rotate, wR, hR);
+
+        rotated.setHasAlpha(true);
+
+
+        if((int)x > original1.getWidth() || (int)y > original1.getHeight())
         {
-            setMinSeekBarScale(0, Math.min(1000*original1.getWidth()/rotated.getWidth(), 1000*original1.getHeight()/rotated.getHeight()));
+            setMinSeekBarScale(0, Math.min(1000*original1.getWidth()/(int)x, 1000*original1.getHeight()/(int)y));
         }
         else
         {
@@ -604,18 +773,45 @@ public class MainActivity2 extends AppCompatActivity {
                     if(a)
                     {
                         original1 = bitmap;
+                        LinearLayout layout = (LinearLayout) findViewById(R.id.ImageLayout);
+                        double h = layout.getHeight();
+                        double h1 = original1.getHeight();
+                        double h2 = original2.getHeight();
+                        double w1 = original1.getWidth();
+                        double w2 = original2.getWidth();
+                        scaledOriginal1 = Bitmap.createScaledBitmap(original1, (int) (w1*h/h1), (int) h, true);
+                        scaledOriginal2 = Bitmap.createScaledBitmap(original2, (int) (w2*h/h2), (int) h, true);
+                        rotated = rotateBitmapF(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
+
+//                        if(original1.getHeight() > original2.getHeight())
+//                        {
+//                            scaledOriginal1 = Bitmap.createScaledBitmap(original1, w1*h/h1, h,  true);
+//                            scaledOriginal2 = Bitmap.createScaledBitmap(original2, w2*h/h1, h*h2/h1, true);
+//                            rotated = rotateBitmap(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
+//                        }
+//                        else
+//                        {
+//                            scaledOriginal1 = Bitmap.createScaledBitmap(original1, w1*h/h2, h*h1/h2,  true);
+//                            scaledOriginal2 = Bitmap.createScaledBitmap(original2, w2*h/h2, h, true);
+//                            rotated = rotateBitmap(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
+//                        }
                         setMaxScale();
+                        setMaxXY();
                         layer = setLayer();
                         imageView1.setImageDrawable(layer);
                     }
                     break;
                 case (1):
                     original2 = bitmap;
-                    rotated = rotateBitmap(original2, (float) (rotateSeekBar.getProgress()+minRotate));
+                    LinearLayout layout = (LinearLayout) findViewById(R.id.ImageLayout);
+                    int HeightImage = layout.getHeight();
+                    scaledOriginal2 = Bitmap.createScaledBitmap(original2, HeightImage*original2.getWidth()/original2.getHeight(), HeightImage, true);
+                    rotated = rotateBitmapF(scaledOriginal2, (float) (rotateSeekBar.getProgress()+minRotate));
                     setMaxScale();
+                    setMaxXY();
                     layer = setLayer();
                     imageView1.setImageDrawable(layer);
-                    imageView2.setImageBitmap(bitmap);
+                    imageView2.setImageBitmap(scaledOriginal2);
                     break;
 
             }

@@ -73,8 +73,10 @@ public class MainActivity extends AppCompatActivity {
     static final int GALLERY_REQUEST = 1;
     private static final String TAG = "1";
     private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 101;
+    private  static final int Heoght = 350;
     TextView textView;
     SeekBar seekBar;
+    private Bitmap result = null;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         setContentView(R.layout.activity_main);
@@ -111,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
             imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
             BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
             Bitmap bitmap = drawable.getBitmap();
+            result = bitmap;
             imageView.setImageBitmap(bitmap);
         }
         catch (IOException e){
@@ -241,9 +244,7 @@ public class MainActivity extends AppCompatActivity {
     public void saveImage(View view) throws Exception {
         checkPermission();
         CreateFolders();
-        ImageView imageView = (ImageView) findViewById(R.id.imageButton);
-        BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-        Bitmap bitmap = drawable.getBitmap();
+        Bitmap bitmap = result;
 
         String sdcardBmpPath = Environment.getExternalStorageDirectory() + "/DCIM/SavedImages/" + java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime()) +".bmp";
         AndroidBmpUtil bmpUtil = new AndroidBmpUtil();
@@ -329,10 +330,7 @@ public class MainActivity extends AppCompatActivity {
     {
         checkPermission();
         CreateFolders();
-        ImageView imageView = (ImageView) findViewById(R.id.imageButton);
-        BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-        Bitmap bitmap = drawable.getBitmap();
-        send(bitmap);
+        send(result);
     }
 
 //    private Bitmap loadBitmapFromView(View v) {
@@ -504,13 +502,12 @@ public class MainActivity extends AppCompatActivity {
 
         Random random = new Random(pass);
 
-        Key publicKey = null;
-        byte[] textData = text.getBytes();
-        //IvParameterSpec iv = new IvParameterSpec();
+//        Key publicKey = null;
+//        byte[] textData = text.getBytes();
+//        //IvParameterSpec iv = new IvParameterSpec();
 
         random = new Random(pass);
-        BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-        Bitmap bitmap = drawable.getBitmap();
+        Bitmap bitmap = result;
 
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
@@ -648,6 +645,8 @@ public class MainActivity extends AppCompatActivity {
 //            bitmap1.setPixel(x, y, Color.argb(alpha, r, g, b));
 //        }
 
+        result = bitmap1;
+        bitmap1 = Bitmap.createScaledBitmap(result, Heoght*result.getWidth()/result.getHeight(), Heoght, true);
         imageView.setImageBitmap(bitmap1);
         Toast.makeText(getApplicationContext(), "Encrypted", Toast.LENGTH_SHORT).show();
     }
@@ -739,8 +738,7 @@ public class MainActivity extends AppCompatActivity {
 //            return;
 //        }
 
-        BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-        Bitmap bitmap = drawable.getBitmap();
+        Bitmap bitmap = result;
         bitmap.setHasAlpha(false);
         String text = "";
         int width = bitmap.getWidth();
@@ -1097,6 +1095,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onDestroy() {
+        Runtime.getRuntime().gc();
+        super.onDestroy();
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent imageReturnedIntent) {
         super.onActivityResult(requestCode, resultCode, imageReturnedIntent);
         Bitmap bitmap = null;
@@ -1113,6 +1117,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         }
+        result = bitmap;
+        bitmap = Bitmap.createScaledBitmap(result, Heoght*result.getWidth()/result.getHeight(), Heoght, true);
 //        Bitmap bitmap1 = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
 //
 //        int col, r, g, b, w, h;
