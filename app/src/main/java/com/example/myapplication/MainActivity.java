@@ -817,11 +817,12 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         }
-        result = bitmap;
-        bitmap = Bitmap.createScaledBitmap(result, Height *result.getWidth()/result.getHeight(), Height, true);
         if(bitmap != null)
         {
+            result = bitmap;
+            bitmap = Bitmap.createScaledBitmap(result, Height *result.getWidth()/result.getHeight(), Height, true);
             imageView.setImageBitmap(bitmap);
+            bitmap = null;
         }
     }
 }
