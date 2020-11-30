@@ -217,7 +217,7 @@
                     android:layout_height="wrap_content"
                     android:background="@color/white"
                     android:onClick="mixImages"
-                    android:text="mix images" />
+                    android:text="render"/>
 
                 <Button
                     android:id="@+id/button6"
