@@ -19,6 +19,7 @@ import android.webkit.MimeTypeMap;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ListAdapter;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,10 +28,12 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.res.TypedArrayUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashSet;
@@ -260,14 +263,14 @@ public class MainActivity extends AppCompatActivity {
     private int setBitInColor(int color, int bitInColor, int oneOrZero)
     {
         int[] ones = {
-                2147483519,
-                2147483583,
-                2147483615,
-                2147483631,
-                2147483639,
-                2147483643,
-                2147483645,
-                2147483646
+                -129,
+                -65,
+                -33,
+                -17,
+                -9,
+                -5,
+                -3,
+                -2
         };
         int[] zeros = {
                 128,
@@ -287,7 +290,7 @@ public class MainActivity extends AppCompatActivity {
     private int getBitInByty(byte b, int bitInByte)
     {
         byte ones[] = {
-                (byte)128,
+                (byte)-128,
                 (byte)64,
                 (byte)32,
                 (byte)16,
@@ -298,6 +301,10 @@ public class MainActivity extends AppCompatActivity {
         };
         b &= ones[bitInByte];
         b >>= 7 - bitInByte;
+        if(b == -1)
+        {
+            return 1;
+        }
         return (int)b;
     }
 
@@ -377,7 +384,7 @@ public class MainActivity extends AppCompatActivity {
         int r = Color.red(PixelColor);
         int g = Color.green(PixelColor);
         int b = Color.blue(PixelColor);
-        for(int i = 0; i < text.length(); i++)
+        for(int i = 0; i < txt.length; i++)
         {
             for(int bit = 0; bit < 8; bit++)
             {
@@ -408,7 +415,7 @@ public class MainActivity extends AppCompatActivity {
                                 color++;
                                 bitInColor = 8 - bitOnColor;
                             }
-                            if(i == text.length()-1 && bit == 7)
+                            if(i == txt.length-1 && bit == 7)
                             {
                                 bitmap1.setPixel(x, y, Color.rgb(r, g, b));
                             }
@@ -421,7 +428,7 @@ public class MainActivity extends AppCompatActivity {
                                 color++;
                                 bitInColor = 8 - bitOnColor;
                             }
-                            if(i == text.length()-1 && bit == 7)
+                            if(i == txt.length-1 && bit == 7)
                             {
                                 bitmap1.setPixel(x, y, Color.rgb(r, g, b));
                             }
@@ -429,7 +436,7 @@ public class MainActivity extends AppCompatActivity {
                         case (2):
                             b = setBitInColor(b, bitInColor, getBitInByty(txt[i], bit));
                             bitInColor++;
-                            if(i == text.length()-1 && bit == 7)
+                            if(i == txt.length-1 && bit == 7)
                             {
                                 bitmap1.setPixel(x, y, Color.rgb(r, g, b));
                             }
@@ -437,6 +444,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
+
+
         }
         result = bitmap1;
         bitmap1 = Bitmap.createScaledBitmap(result, Height *result.getWidth()/result.getHeight(), Height, true);
@@ -464,14 +473,14 @@ public class MainActivity extends AppCompatActivity {
     private byte setBitInByty(byte b, int bitInByte, int oneOrZero)
     {
         byte[] ones = {
-                (byte)2147483519,
-                (byte)2147483583,
-                (byte)2147483615,
-                (byte)2147483631,
-                (byte)2147483639,
-                (byte)2147483643,
-                (byte)2147483645,
-                (byte)2147483646
+                (byte)-129,
+                (byte)-65,
+                (byte)-33,
+                (byte)-17,
+                (byte)-9,
+                (byte)-5,
+                (byte)-3,
+                (byte)-2
         };
         byte zeros[] = {
                 (byte)128,
@@ -488,6 +497,18 @@ public class MainActivity extends AppCompatActivity {
         return b;
     }
 
+    byte[] toPrimitives(Byte[] oBytes)
+    {
+        byte[] bytes = new byte[oBytes.length];
+
+        for(int i = 0; i < oBytes.length; i++) {
+            bytes[i] = oBytes[i];
+        }
+
+        return bytes;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void decrypt(View view) {
         SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
         ImageView imageView = (ImageView) findViewById(R.id.imageButton);
@@ -603,6 +624,7 @@ public class MainActivity extends AppCompatActivity {
         }
         if(findBits)
         {
+            ArrayList<Byte> txt = new ArrayList<Byte>();
             random = new Random(pass);
             HashSet<Integer> states = new HashSet<Integer>();
             int temp = getNextTemp(random, width, height, states);
@@ -657,6 +679,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 text += (char) symbol;
+                txt.add(symbol);
                 if(text.length() < 2) {
                     symb = true;
                 }
@@ -669,12 +692,18 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
+            Byte[] bytes = txt.toArray(new Byte[txt.size()]);
+            byte[] f = toPrimitives(bytes);
+            text = new String(f, StandardCharsets.UTF_8);
+
         }
         else
         {
             Toast.makeText(getApplicationContext(), "Decryption error ", Toast.LENGTH_SHORT).show();
             return;
         }
+
+
 
         for(int i = 0; i < text.length()-1; i++)
         {
