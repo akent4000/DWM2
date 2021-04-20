@@ -30,7 +30,7 @@
                 android:enabled="true"
 
                 android:onClick="setInVisible"
-                android:text="invisible" />
+                android:text="@string/invisible" />
 
             <Button
                 android:id="@+id/button2"
@@ -88,6 +88,7 @@
                         android:layout_height="match_parent"
                         android:layout_weight="1"
                         android:background="@color/white"
+                        android:contentDescription="@string/todo"
                         android:maxWidth="150dp"
                         android:maxHeight="150dp"
                         android:minWidth="50dp"

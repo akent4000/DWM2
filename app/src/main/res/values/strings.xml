@@ -4,4 +4,5 @@
     <string name="button">Button</string>
     <string name="load_image">Load image</string>
     <string name="name">Name</string>
+    <string name="invisible">invisible</string>
 </resources>
